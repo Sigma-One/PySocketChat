@@ -39,10 +39,13 @@ def serve(sock, addr):
 
 		# Check message type
 		if "MSG" in data.keys():
-			# Message is message, send it forward
-			data["MSG"] = client_info["NAME"] + data["MSG"]
-			for i in clients:
-				i.send(json.dumps(data).encode("utf8"))
+			try:
+				# Message is message, send it forward
+				data["MSG"] = client_info["NAME"] + data["MSG"]
+				for i in clients:
+					i.send(json.dumps(data).encode("utf8"))
+			except BrokenPipeError:
+				log("Failed to send message")
 
 		elif "NAME" in data.keys():
 			# Message is name, set it as client name
