@@ -1,7 +1,8 @@
 import socket
 import threading
 import sys
-import tkinter
+import tkinter as tk
+import json
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -11,31 +12,59 @@ port = 9999
 
 client.connect((host, port))
 
-root = tkinter.Tk()
-frame = tkinter.Frame(root, bg="azure")
-frame.grid(sticky=tkinter.N+tkinter.S+tkinter.E+tkinter.W)
+class Application(tk.Frame):
+	def __init__(self, master=None):
+		super(Application, self).__init__(master)
 
-message_box = tkinter.Text(root, wrap=tkinter.WORD)
-message_box.grid(row=0, column=0, sticky="nsew")
+		self.pack(expand=1, fill='both')
 
-def get_input():
-    while True:
-        message = input()
-        client.send(message.encode("utf8"))
+		self.control_frame = tk.Frame(self)
+		self.control_frame.pack(fill='x')
 
-def write_messages():
-    while True:
-        message_received = client.recv(1024).decode("utf8")
-        sys.stdout.write(message_received + "\n")
-        message_box.insert("end", message_received + "\n")
+		self.message_frame = tk.Frame(self)
+		self.message_frame.pack(expand=1, fill='both')
 
-sys.stdout.write(client.recv(1024).decode("utf8"))
-client.send(input().encode("utf8"))
+		self.send_frame = tk.Frame(self)
+		self.send_frame.pack(fill='x')
 
-sender = threading.Thread(target=get_input)
-sender.start()
+		self.message_box = tk.Text(self.message_frame, wrap=tk.WORD)
+		self.message_box.pack(expand=1, fill='both', pady=2, padx=4)
 
-receiver = threading.Thread(target=write_messages)
+		self.send_field = tk.Entry(self.send_frame)
+		self.send_field.pack(side='left', pady=2, padx=4, expand=1, fill='x')
+
+		tk.Button(self.send_frame, command=self.send_messages, text="Send").pack(side='right', pady=2, padx=4)
+
+		tk.Button(self.control_frame, command=self.quit, text="Quit").pack(side='right', pady=2, padx=4)
+
+		self.master.bind('<Return>', self.send_messages)
+
+	def quit(self):
+		data = {}
+		data["QUIT"] = 1
+		client.send(json.dumps(data).encode("utf8"))
+
+		del data
+		self.master.destroy()
+		sys.exit()
+
+	def send_messages(self, event=None):
+		data = {}
+		data["MSG"] = self.send_field.get()
+		client.send(json.dumps(data).encode("utf8"))
+
+		self.send_field.delete(0, tk.END)
+		del data
+
+app = Application()
+
+def receive_data():
+	while True:
+		data = json.loads(client.recv(1024))
+		sys.stdout.write(data["MSG"] + "\n")
+		app.message_box.insert("end", data["MSG"] + "\n")
+
+receiver = threading.Thread(target=receive_data, daemon=True)
 receiver.start()
 
-root.mainloop()
+app.mainloop()

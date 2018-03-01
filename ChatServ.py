@@ -1,5 +1,8 @@
-import socket, sys, threading, time
-#from multiprocessing import Queue
+import socket
+import sys
+import threading
+import json
+
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -19,65 +22,43 @@ server.listen(25)
 threads = []
 
 def log(text):
-    try:
-        print("LOG: " + text.strip())
-    except:
-        print("LOG: ", text)
+	try:
+		print("LOG: " + text.strip())
+	except:
+		print("LOG: ", text)
 
 def serve(sock, addr):
-    try:
-        client.send(("ENTER NAME: ").encode("utf8"))
-        name = client.recv(1024).decode("utf8").strip()
+	client_info = {}
+	client_info["ADDRESS"] = addr[0]
+	client_info["NAME"] = "<Anonymous> "
+	while True:
+		data = json.loads(sock.recv(1024))
 
-        client_info = (name + "@" + addr[0]).strip()
+		# Check message type
+		if "MSG" in data.keys():
+			# Message is message, send it forward
+			data["MSG"] = client_info["NAME"] + data["MSG"]
+			for i in clients:
+				i.send(json.dumps(data).encode("utf8"))
 
-        log("Client" + client_info + "ready")
-    except:
-        log("Name retrieving failed")
+		elif "NAME" in data.keys():
+			# Message is name, set it as client name
+			client_info["NAME"] = "<" + data["NAME"] + "> "
 
-    for i in clients:
-        try:
-            #print(clients)
-            i.send(("### " + client_info + " joined ###").encode("utf8"))
+		elif "QUIT" in data.keys():
+			# Message is quit, disconnect client
+			break
 
-        except BrokenPipeError or ConnectionResetError:
-            log("Could not send join message for" + client_info + "to" + i.getsockname()[0])
 
-    while True:
-        try:
-            data = sock.recv(1024).decode("utf8")
 
-            if data == "":
-                log("Invalid data from " + client_info)
-                break
-
-            data = "<" + name + "> " + data
-            log(data)
-            data = data.encode("utf8")
-            for i in clients:
-                #print(clients)
-                i.send(data)
-
-        except:
-            break
-
-    for i in clients:
-        try:
-            #print(clients)
-            i.send(("### " + client_info + " left ###").encode("utf8"))
-        except:
-            log("LOG: Could not send leave message for" + client_info + "to" + i.getsockname()[0])
-
-    log(client_info + " hung up, closing socket")
-    sock.close()
-    clients.remove(sock)
-    log("Cleanup for" + client_info + " done, stopping thread")
-    return 0
+	log(client_info["NAME"] + "@ " + client_info["ADDRESS"] + " hung up, closing socket")
+	sock.close()
+	clients.remove(sock)
+	del sock
 
 while True:
-    client, address = server.accept()
-    log("Connection from " + address[0])
-    #print(clients)
-    clients.append(client)
-    threads.append(threading.Thread(target=serve, args=(client, address)))
-    threads[len(threads) - 1].start()
+	client, address = server.accept()
+	log("Connection from " + address[0])
+	clients.append(client)
+	threads.append(threading.Thread(target=serve, args=(client, address)))
+	threads[len(threads) - 1].start()
