@@ -28,9 +28,12 @@ def log(text):
 		print("LOG: ", text)
 
 def serve(sock, addr):
+	# Set default client info
 	client_info = {}
 	client_info["ADDRESS"] = addr[0]
 	client_info["NAME"] = "<Anonymous> "
+
+	# Main client loop
 	while True:
 		data = json.loads(sock.recv(1024))
 
@@ -43,6 +46,17 @@ def serve(sock, addr):
 
 		elif "NAME" in data.keys():
 			# Message is name, set it as client name
+			# Send info to clients
+			msg = {}
+			msg["MSG"] = client_info["NAME"] + "set their name to <" + data["NAME"] + ">"
+
+			try:
+				for i in clients:
+					i.send(json.dumps(msg).encode("utf8"))
+			except BrokenPipeError:
+				log("Failed to send name notification")
+
+			# Set name
 			client_info["NAME"] = "<" + data["NAME"] + "> "
 
 		elif "QUIT" in data.keys():
@@ -50,7 +64,7 @@ def serve(sock, addr):
 			break
 
 
-
+	# Disconnect and clean up
 	log(client_info["NAME"] + "@ " + client_info["ADDRESS"] + " hung up, closing socket")
 	sock.close()
 	clients.remove(sock)
