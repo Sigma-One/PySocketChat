@@ -9,7 +9,7 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 host = socket.gethostname()
 
-port = 9999
+port = int(input("Please enter port to connect to >> "))
 
 style = ttk.Style()
 style.configure("TButton", foreground = "white", background = "#202020", relief = "flat", focusthickness = 0)
@@ -71,8 +71,8 @@ class Application(tk.Frame):
 
 	def send_messages(self, event=None):
 		data = {}
-		data["MSG"] = self.send_field.get()
-		if data["MSG"] != "":
+		data["TMSG"] = self.send_field.get()
+		if data["TMSG"] != "":
 			client.send(json.dumps(data).encode("utf8"))
 
 		self.send_field.delete(0, tk.END)
@@ -81,7 +81,7 @@ class Application(tk.Frame):
 	def set_name(self):
 		def set():
 			data = {}
-			data["NAME"] = self.name_entry.get()
+			data["SINF"] = ["NAME", self.name_entry.get()]
 			client.send(json.dumps(data).encode("utf8"))
 
 			del data
@@ -102,10 +102,10 @@ def receive_data():
 		data = client.recv(1024)
 		if data != b"":
 			data = json.loads(data)
-			sys.stdout.write(data["MSG"] + "\n")
+			sys.stdout.write(data["TMSG"] + "\n")
 
 			app.message_box.configure(state="normal")
-			app.message_box.insert("end", data["MSG"].strip() + "\n")
+			app.message_box.insert("end", data["TMSG"].strip() + "\n")
 			app.message_box.see("end")
 			app.message_box.configure(state="disabled")
 
